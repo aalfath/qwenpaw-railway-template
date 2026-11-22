@@ -31,14 +31,14 @@ Optional, set them on the service if you need them: `QWENPAW_AGENT_LANGUAGE` (`e
 ## After you deploy
 
 1. Open the service's public URL and sign in with the username and password from the Variables tab.
-2. Go to **Settings → Models**, pick a provider (OpenAI, Anthropic, Gemini, DashScope/Qwen, DeepSeek, OpenRouter, Ollama on another host, …), paste your API key and choose the default model. QwenPaw needs one model provider to answer; the key is stored encrypted on the volume.
+2. Chat right away: QwenPaw v2.3 answers out of the box with upstream's default free model (Kilo's `kilo-auto/free`, rate-limited and run by a third party). For your own models, go to **Settings → Models**, pick a provider (OpenAI, Anthropic, Gemini, DashScope/Qwen, DeepSeek, OpenRouter, Ollama on another host, …), paste your API key and choose the default model. Keys are stored encrypted on the volume.
 3. Chat in the console, or connect a channel under **Channels** (for example a Telegram bot token).
 
 ## How this differs from upstream's Docker image
 
 The image is upstream's, unchanged. `railway/start.sh` replaces upstream's entrypoint:
 
-- **Smaller.** Upstream starts the app under supervisord next to a full Xfce desktop on a virtual display (about 510 MB at idle). On a Linux server QwenPaw's browser runs headless and desktop control isn't supported, so the template runs only the app: about 290 MB at idle, healthy about 15 seconds after start.
+- **Smaller.** Upstream starts the app under supervisord next to a full Xfce desktop on a virtual display (about 510 MB at idle). On a Linux server QwenPaw's browser runs headless and desktop control isn't supported, so the template runs only the app: about 0.4 GB at idle instead of 0.5+, healthy about 15 seconds after start.
 - **Login always on.** `QWENPAW_AUTH_ENABLED` is forced to `true` and the account is created from the variables before the app starts (`railway/setup.py`). Without a usable login the container stops instead of serving an open console.
 - **English persona files.** Upstream's `qwenpaw init --defaults` writes the agent's persona files (`AGENTS.md`, `SOUL.md`, …) in Chinese. The template writes the agent language into `config.json` first.
 - **Real client IPs.** Railway's private ranges are set as `security.trusted_proxies`, so the login rate limiter sees the visitor's IP, not the proxy's.
@@ -49,7 +49,15 @@ Health check: `/api/version` (answers without login). Restart policy: on failure
 
 ## Resources
 
-About 290 MB RAM at idle and well under 0.5 GB in normal use, so it runs on Railway's Free and Trial plans. Browser automation (Chromium) and local models (QwenPaw Local / llama.cpp) need more: give the service 2 GB or more if you use them.
+Measured on Railway with v2.3.0.post1:
+
+| Use | RAM |
+| --- | --- |
+| Console idle, chat, memory, skills, channels | about 0.4 GB |
+| Agent using its browser tool (headless Chromium) | about 0.9 GB |
+| Local models (QwenPaw Local / llama.cpp) | 2 GB or more, depending on the model |
+
+On Railway's Free and Trial plans (0.5 GB per service) the console and chat work, but a browser task gets the service killed for memory. The container then exits non-zero, Railway restarts it within seconds and your data stays on the volume, but that reply is lost. If you want the browser tool, give the service at least 1 GB (**Settings → Resources**).
 
 ## Updates
 
